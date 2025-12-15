@@ -15,6 +15,11 @@
 void spdif_init(int rate);
 
 /*
+ * deinitialize S/PDIF driver
+ */ 
+void spdif_deinit();
+
+/*
  * send PCM data to S/PDIF transmitter
  *   src: pointer to 16bit PCM stereo data
  *   size: number of data bytes

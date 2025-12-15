@@ -6,7 +6,11 @@
     CONDITIONS OF ANY KIND, either express or implied.
 */
 #include "freertos/FreeRTOS.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include "driver/i2s_std.h"
+#else
 #include "driver/i2s.h"
+#endif
 
 #ifdef CONFIG_SPDIF_DATA_PIN
 #define SPDIF_DATA_PIN CONFIG_SPDIF_DATA_PIN
@@ -31,6 +35,7 @@
 
 static uint32_t spdif_buf[SPDIF_BUF_ARRAY_SIZE];
 static uint32_t *spdif_ptr;
+static i2s_chan_handle_t spdif_tx_chan = NULL;
 
 /*
  * 8bit PCM to 16bit BMC conversion table, LSb first, 1 end
@@ -92,6 +97,31 @@ static void spdif_buf_init(void)
 // initialize I2S for S/PDIF transmission
 void spdif_init(int rate)
 {
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    // ここに新しいドライバ用の初期化コードを入れる
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    chan_cfg.auto_clear = true;
+    i2s_std_config_t std_cfg = {
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(rate * BMC_BITS_FACTOR),
+        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
+        .gpio_cfg = {
+            .mclk = I2S_GPIO_UNUSED,
+            .bclk = I2S_GPIO_UNUSED,
+            .ws   = I2S_GPIO_UNUSED,
+            .dout = SPDIF_DATA_PIN,
+            .din  = I2S_GPIO_UNUSED,
+            .invert_flags = {
+                .mclk_inv = false,
+                .bclk_inv = false,
+                .ws_inv = false,
+            },
+        },
+    };
+    /* enable I2S */
+    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &spdif_tx_chan, NULL));
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(spdif_tx_chan, &std_cfg));
+    ESP_ERROR_CHECK(i2s_channel_enable(spdif_tx_chan));
+#else
     int sample_rate = rate * BMC_BITS_FACTOR;
     int bclk = sample_rate * I2S_BITS_PER_SAMPLE * I2S_CHANNELS;
     int mclk = (I2S_BUG_MAGIC / bclk) * bclk; // use mclk for avoiding I2S bug
@@ -117,10 +147,21 @@ void spdif_init(int rate)
 
     ESP_ERROR_CHECK(i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL));
     ESP_ERROR_CHECK(i2s_set_pin(I2S_NUM, &pin_config));
-
+#endif
     // initialize S/PDIF buffer
     spdif_buf_init();
     spdif_ptr = spdif_buf;
+}
+
+// uninstall driver
+void spdif_deinit()
+{
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    ESP_ERROR_CHECK(i2s_channel_disable(spdif_tx_chan));
+    ESP_ERROR_CHECK(i2s_del_channel(spdif_tx_chan));
+#else
+    i2s_driver_uninstall(I2S_NUM);
+#endif
 }
 
 // write audio data to I2S buffer
@@ -142,7 +183,11 @@ void spdif_write(const void *src, size_t size)
 	    // set block start preamble
 	    ((uint8_t *)spdif_buf)[SYNC_OFFSET] ^= SYNC_FLIP;
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        i2s_channel_write(spdif_tx_chan, spdif_buf, sizeof(spdif_buf), &i2s_write_len, portMAX_DELAY);
+#else
 	    i2s_write(I2S_NUM, spdif_buf, sizeof(spdif_buf), &i2s_write_len, portMAX_DELAY);
+#endif
 
 	    spdif_ptr = spdif_buf;
 	}
@@ -153,6 +198,6 @@ void spdif_write(const void *src, size_t size)
 void spdif_set_sample_rates(int rate)
 {
     // uninstall and reinstall I2S driver for avoiding I2S bug
-    i2s_driver_uninstall(I2S_NUM);
+    spdif_deinit();
     spdif_init(rate);
 }
