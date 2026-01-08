@@ -90,8 +90,12 @@ static void spdif_buf_init(void)
     uint32_t bmc_mw = BMC_W;
 
     for (i = 0; i < SPDIF_BUF_ARRAY_SIZE; i += 2) {
-	spdif_buf[i] = bmc_mw ^= BMC_MW_DIF;
+        spdif_buf[i]   = bmc_mw ^= BMC_MW_DIF;
+        spdif_buf[i+1] = 0x33333333;
     }
+    // set block start preamble
+    ((uint8_t *)spdif_buf)[SYNC_OFFSET] ^= SYNC_FLIP;
+
 }
 
 // initialize I2S for S/PDIF transmission
@@ -171,26 +175,23 @@ void spdif_write(const void *src, size_t size)
 
     while (p < (uint8_t *)src + size) {
 
-	// convert PCM 16bit data to BMC 32bit pulse pattern
-	*(spdif_ptr + 1) = (uint32_t)(((bmc_tab[*p] << 16) ^ bmc_tab[*(p + 1)]) << 1) >> 1;
+        // convert PCM 16bit data to BMC 32bit pulse pattern
+        *(spdif_ptr + 1) = (uint32_t)(((bmc_tab[*p] << 16) ^ bmc_tab[*(p + 1)]) << 1) >> 1;
 
-	p += 2;
-	spdif_ptr += 2; 	// advance to next audio data
- 
-	if (spdif_ptr >= &spdif_buf[SPDIF_BUF_ARRAY_SIZE]) {
-    	    size_t i2s_write_len;
+        p += 2;
+        spdif_ptr += 2; 	// advance to next audio data
 
-	    // set block start preamble
-	    ((uint8_t *)spdif_buf)[SYNC_OFFSET] ^= SYNC_FLIP;
+        if (spdif_ptr >= &spdif_buf[SPDIF_BUF_ARRAY_SIZE]) {
+            size_t i2s_write_len;
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-        i2s_channel_write(spdif_tx_chan, spdif_buf, sizeof(spdif_buf), &i2s_write_len, portMAX_DELAY);
+            i2s_channel_write(spdif_tx_chan, spdif_buf, sizeof(spdif_buf), &i2s_write_len, portMAX_DELAY);
 #else
-	    i2s_write(I2S_NUM, spdif_buf, sizeof(spdif_buf), &i2s_write_len, portMAX_DELAY);
+            i2s_write(I2S_NUM, spdif_buf, sizeof(spdif_buf), &i2s_write_len, portMAX_DELAY);
 #endif
 
-	    spdif_ptr = spdif_buf;
-	}
+            spdif_ptr = spdif_buf;
+        }
     }
 }
 
