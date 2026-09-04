@@ -33,6 +33,12 @@
 
 #include "sys/lock.h"
 
+#include "status_led.h"
+
+#ifndef ESP_A2D_AUDIO_STATE_STOPPED
+#define ESP_A2D_AUDIO_STATE_STOPPED ESP_A2D_AUDIO_STATE_SUSPEND
+#endif
+
 /* AVRCP used transaction labels */
 #define APP_RC_CT_TL_GET_CAPS            (0)
 #define APP_RC_CT_TL_GET_META_DATA       (1)
@@ -313,9 +319,11 @@ static void bt_av_hdl_a2d_evt(uint16_t event, void *p_param)
             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
             bt_i2s_driver_uninstall();
             bt_i2s_task_shut_down();
+            status_led_set_status(STATUS_LED_BT_DISCONNECTED);
         } else if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED){
             esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
             bt_i2s_task_start_up();
+            status_led_set_status(STATUS_LED_BT_CONNECTED);
         } else if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTING) {
             bt_i2s_driver_install();
         }
@@ -328,6 +336,9 @@ static void bt_av_hdl_a2d_evt(uint16_t event, void *p_param)
         s_audio_state = a2d->audio_stat.state;
         if (ESP_A2D_AUDIO_STATE_STARTED == a2d->audio_stat.state) {
             s_pkt_cnt = 0;
+            status_led_set_status(STATUS_LED_AD_STARTED);
+        }else if(ESP_A2D_AUDIO_STATE_SUSPEND == a2d->audio_stat.state){
+            status_led_set_status(STATUS_LED_AD_SUSPEND);
         }
         break;
     }

@@ -34,10 +34,22 @@ menu "A2DP Example Configuration"
 
     config SPDIF_DATA_PIN
         int "S/PDIF DATA GPIO"
-        default 27
+        default 16
         depends on EXAMPLE_A2DP_SINK_OUTPUT_SPDIF
         help
             GPIO number to use for S/PDIF Data Driver.
+
+    config STATUS_LED_RED_PIN
+        int "Status LED 1 GPIO"
+        default 17
+        help
+            GPIO number to use for Status LED 1.
+
+    config STATUS_LED_BLUE_PIN
+        int "Status LED 2 GPIO"
+        default 18
+        help
+            GPIO number to use for Status LED 2.
 
     config EXAMPLE_I2S_LRCK_PIN
         int "I2S LRCK (WS) GPIO"

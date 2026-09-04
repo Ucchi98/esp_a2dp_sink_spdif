@@ -15,7 +15,7 @@
 #ifdef CONFIG_SPDIF_DATA_PIN
 #define SPDIF_DATA_PIN CONFIG_SPDIF_DATA_PIN
 #else
-#define SPDIF_DATA_PIN		27
+#define SPDIF_DATA_PIN		16
 #endif
 
 #define I2S_NUM			(0)
