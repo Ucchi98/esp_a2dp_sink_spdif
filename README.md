@@ -21,7 +21,7 @@ The driver project includes modified version of a2dp_sink example to use the S/P
 # Hardware Required
 
 The S/PDIF toslink transmitter is needed.
-The default data output pin is GPIO27. You can change the pin to use "idf.py menuconfig".
+The default data output pin is GPIO16. You can change the pin to use "idf.py menuconfig".
 ![circuit](/spdif_circuit.png "circuit")
 ![board](/spdif_board.jpg "board")
 
