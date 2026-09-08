@@ -30,6 +30,7 @@ The default data output pin is GPIO16. You can change the pin to use "idf.py men
 ```
 idf.py menuconfig
 ```
+![menuconfig](/menuconfig.png "menuconfig")
 
 # Build and Flash
 
